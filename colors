@@ -1,0 +1,186 @@
+#!/usr/bin/perl -w
+
+
+#######  ===============================================  #######
+#######  Standard script front end for a ToolKit utility  #######
+#######  ===============================================  #######
+
+#######  ===============================================  #######
+#######  Variables IMPORTED from ToolKit:                 #######
+#######  ===============================================  #######
+#######  Normal variables:                                #######
+#######    $here $host $hostname $me $noise $pad $user    #######
+#######  Option variables:                                #######
+#######    $noexec $Noexec $quiet $verbose $Verbose $yes  #######
+#######  ===============================================  #######
+
+
+use Cwd;
+use Data::Dumper;
+use File::Basename;
+use File::Copy;
+use FindBin;
+use Getopt::Long;
+use Term::ANSIColor;
+use lib "$FindBin::Bin";
+use strict;
+use ToolKit;
+
+$|=1;   # turn off output buffering
+
+###  define standard global script variables...
+our($config,$help,$marg);
+our $home=$ENV{'HOME'};
+my $use=colored("Usage:  $me ",'black on_yellow');
+my $cargs=colored("<arguments>",'red on_yellow');
+my $copts=colored("[options]",'blue on_yellow');
+$use.=$copts;
+
+###  define options variables...
+my($range);
+
+###  define the options hash...
+my(%options) = (
+  "help"       => \$help,
+ );
+
+###  define valid main arguments...
+my(@regargs)=qw(ansi gray grey rgb);
+my(@stdargs)=qw(show);
+my(@validargs)=(@regargs,@stdargs);
+my($darg)=('ansi');
+
+###===================================###
+###   process the main arguments...   ###
+###===================================###
+#  the usual opts process...
+$Getopt::Long::ignorecase=0;
+&GetOptions(%options) || die "\n";
+#  set the run-time vars and pkg env for ToolKit.pm...
+&ToolKit::SetRunTimeVals;          #  must follow GetOptions...
+&ToolKit::SetPkgEnvrnmnt;          #  must follow GetOptions...
+$help and &HelpScreen($noise,@ARGV);
+if (@ARGV) { $marg=shift @ARGV; } else { $marg=$darg; }
+&ToolKit::ArgCheck("main arg",$marg,\@validargs) or &Usage && exit(1);
+&BLine($noise);
+###+++++++++++++++++++++++++++++++++++###
+###  end main argument processing...  ###
+###+++++++++++++++++++++++++++++++++++###
+
+
+###===================================###
+###  define some global constants...  ###
+###===================================###
+
+
+########################################
+###  check for valid option variables...
+###++++++++++++++++++++++++++++++++++###
+
+
+
+###================================================###
+###  |||||||||  Subroutine definitions  |||||||||  ###
+###================================================###
+
+
+###-------------------------------------###
+###  standard helpless screen nonsense...
+###-------------------------------------###
+sub HelpScreen() {
+  my($sound,$arg)=@_;
+  &BLine;
+  print "Vaild arguments for script $me:\n";
+  print "  regargs - @regargs\n";
+  print "  stdargs - @stdargs\n";
+  &BLine;
+  print "  To see help for show arg, enter: $me show\n";
+  &BLine;
+  print "Valid commands for this script:\n";
+  print "  $me ansi    - [default]\n";
+  print "  $me gray    - print gray color codes.\n";
+  print "  $me grey    - print grey color codes.\n";
+  print "  $me rgb     - print rgb color codes.\n";
+  &BLine; exit(0);
+}
+###=====================================###
+
+###-------------------------------------###
+###  obligatory uselessness subroutine...
+###-------------------------------------###
+sub Usage {
+  my $cblnk=colored(" ",'red on_yellow');
+  $use.="$cblnk$cargs";
+  print "$use\n";
+  print "\n";
+  print "where:  $cargs  = any one of the following:\n";
+  print "          arg1       = execute command #1\n";
+  print "          arg2       = execute command #2\n";
+  print "          arg3       = execute command #3\n";
+  print "          show args  = print valid script arguments\n";
+  print "          show opts  = print valid script options\n";
+  print "          show subs  = print defined subroutines\n";
+  print "\n";
+  print " with:  $copts   = any combo of the following:\n";
+  print "        -h[elp]     = print script help screen\n";
+  print "        -n[oexec]   = do not execute any cmds\n";
+  print "        -N[oexec]   = do not execute any cmds\n";
+  print "        -v[erbose]  = be loquacious & bombastic\n";
+  print "        -V[erbose]  = be extra loud & obnoxious\n";
+  print "        -y[es]      = auto mode - no user input\n";
+  print "\n";
+}
+###=====================================###
+
+
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+###  |||||||  End Subroutine definitions  |||||||  ###
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+
+
+
+###================================================###
+###  >>>>>>>  Primary Flow Control Block  <<<<<<<  ###
+###================================================###
+
+
+if ($marg eq 'ansi') {
+  #+++++++++++++++++++++++++++++++++#
+  print "Displaying 256 ansi colors:\n";
+  for my $i (0..255) {
+    print color("ansi$i"); printf("%-16s%+7s\n","  ansi color#:","ansi$i");
+  }
+  #=================================#
+
+ } elsif ($marg =~ /gr[ae]y/) {
+  #+++++++++++++++++++++++++++++++++#
+  print "Displaying 24 grey colors:\n";
+  for my $i (0..23) {
+    print color("grey$i"); printf("%-15s%+7s\n","  grey color#:","grey$i");
+  }
+  #=================================#
+
+ } elsif ($marg eq 'rgb') {
+  #+++++++++++++++++++++++++++++++++#
+  print "Displaying 216 rgb colors:\n";
+  my $cnt=0;
+  for my $i (0..5) {
+    for my $j (0..5) {
+      for my $k (0..5) {
+        print color("rgb$i$j$k"); printf("%-17s%+6s\n","  rbg color# $cnt:","  rbg$i$j$k");
+        $cnt++;
+      }
+    }
+  }
+  #=================================#
+
+}
+print color("reset");
+
+
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+###  =============>  Program Exit  <=============  ###
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+exit(0);
+
+

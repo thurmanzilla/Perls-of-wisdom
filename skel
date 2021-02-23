@@ -1,0 +1,692 @@
+#!/usr/bin/env -S perl
+
+
+#######  ===============================================  #######
+#######  Standard script front end for a ToolKit utility  #######
+#######  ===============================================  #######
+
+#######  ===============================================  #######
+#######  Variables IMPORTED from ToolKit (14):            #######
+#######  ===============================================  #######
+#######  -----------------------------------------------  #######
+#######  Basic Run-Time variables (6):                    #######
+#######    $here $hostname $me $noise $pad $user          #######
+#######  -----------------------------------------------  #######
+#######  Standard Option variables (8):                   #######
+#######    $help $noexec $Noexec $quiet                   #######
+#######    $verbose $Verbose $write $yes                  #######
+#######  -----------------------------------------------  #######
+#######  ===============================================  #######
+#######  Functions EXPORTED by ToolKit (24):              #######
+#######  ===============================================  #######
+#######    BLine DirGet FilGet FilPut FmtCsvRow FmtDate   #######
+#######    FmtNumber GetInputFilName ListBoth ListComp    #######
+#######    ListConj ListDiff ListDDiff ListIn ListIntr    #######
+#######    ListMaxLen MkCdDir PadIt Prf PrnBlockHead      #######
+#######    PrnWarn SelectFromList SysErr WhatTimeIsIt     #######
+#######  ===============================================  #######
+
+
+
+use strict;
+use warnings;
+use Config;
+use Cwd;
+use Data::Dumper;
+use File::Basename;
+use File::Copy;
+use FindBin;
+use lib "$FindBin::Bin";
+use lib "$FindBin::Bin/../lib";
+use Getopt::ArgParse;
+use Getopt::Long;
+use Math::Complex;
+use Term::ANSIColor;
+use Time::Piece;
+use ToolKit 0.007;
+
+$|=1;   # turn off output buffering
+
+###  define standard global script variables...
+our($marg,$HOME) = ("",$ENV{'HOME'});
+my $TAB=colored("[TAB]", 'magenta on_black');
+
+###  define other global script variables...
+my $gdata={};     # anonymous hash reference...
+my $glist=[];     # anonymous list reference...
+my $gskip="";     # ze global skipper flagit...
+my $gtrig="";     # ze global switch/trigger...
+my $gcnt=0;       # ze global count variable...
+my($fore,$back)=();
+my($ofile,$oofile)=([],[]);
+my(@flds,@parts)=();
+my($fmt)=("%+4s%-30s\n");
+my $outfile="out.csv";
+
+###  define standard options variables...
+our($help,$noexec,$Noexec,$quiet,$verbose,$Verbose,$write,$yes)=(0,0,0,0,0,0,0,0);
+###  define custom options variables...
+my($all,$bal,$filter,$infile,$list,$mkdir,$oride,$range,$sort);
+###  define special options variables...
+my($config);
+
+###  define the options hash...
+my(%options) = (
+  "help"       => \$help,
+  "noexec"     => \$noexec,
+  "Noexec"     => \$Noexec,
+  "quiet"      => \$quiet,
+  "verbose"    => \$verbose,
+  "Verbose=i"  => \$Verbose,
+  "write"      => \$write,
+  "yes"        => \$yes,
+
+  "all"        => \$all,
+  "bal"        => \$bal,
+  "filter=s"   => \$filter,
+  "infile=s"   => \$infile,
+  "list=s"     => \$list,
+  "mkdir"      => \$mkdir,
+  "override"   => \$oride,
+  "range=s"    => \$range,
+  "sort=s"     => \$sort,
+
+  "config=s"   => \$config
+ );
+
+###  define valid main arguments...
+my(@regargs)=qw(colr email nul warn);
+my(@runargs)=qw(msgs pass run1 run2);
+my(@stdargs)=qw(ask chkit show test);
+my(@validargs)=(@regargs,@runargs,@stdargs);
+
+###===================================###
+###   process the main arguments...   ###
+###===================================###
+if (!@ARGV) {
+  &BLine(); &Usage;
+ } else {
+  #  the usual opts process...
+  $Getopt::Long::ignorecase=0;
+  &GetOptions(%options) || die "\n";
+  #  set the run-time vars and pkg env for ToolKit.pm...
+  &ToolKit::SetRunTimeVals;          #  must follow GetOptions...
+  &ToolKit::SetPkgEnvrnmnt;          #  must follow GetOptions...
+  $help and &HelpScreen($noise,@ARGV);
+  if (@ARGV) {
+    $marg=shift @ARGV;
+   } else {
+    &ToolKit::ArgMissed($noise,"arguments");
+  }
+  &ToolKit::ArgCheck("main arg",$marg,\@validargs) or &Usage;
+}
+&BLine($noise);
+###+++++++++++++++++++++++++++++++++++###
+###  end main argument processing...  ###
+###+++++++++++++++++++++++++++++++++++###
+
+
+###===================================###
+###  define some global constants...  ###
+###===================================###
+
+###++++++++++++++++++++++++++++###
+my $DataSpace=$ToolKit::DataSpace;
+$gdata->{'DataSpace'}=$DataSpace;
+###++++++++++++++++++++++++++++###
+
+
+###################################################
+### define blank row for spreadsheet, separators...
+my $blkrow="\"\"\r\n";
+my $ndate='-- NONE --';
+my $sep=colored("="x52, 'blue on_black');
+my $thickline=colored("#"x124 ."\n", 'green on_black');
+my $thinline=colored("-"x124 ."\n", 'cyan on_black');
+my(@blklist);
+for (1..44) { push @blklist, ""; }
+###++++++++++++++++++++++++++++++++++++++++++++++###
+
+#########################################
+###  define any NoEx verbs you'll spew...
+my $NoExVerbs=$DataSpace->{'NoExVerbs'};
+my $xadd        =  $NoExVerbs->{'add'};
+my $xcopy       =  $NoExVerbs->{'copy'};
+my $xmove       =  $NoExVerbs->{'move'};
+my $xrun        =  $NoExVerbs->{'run'};
+my $xtest       =  $NoExVerbs->{'test'};
+my $xwrite      =  $NoExVerbs->{'write'};
+###+++++++++++++++++++++++++++++++++++###
+
+########################################
+#======================================#
+###  set da DataSpace constant vars  ###
+#======================================#
+########################################
+
+########################################
+###  set the standard message strings...
+my $msgstrings=$DataSpace->{'Messages'};
+my($Bar,$Lar,$Rar,$Abt,$Dng,$DNG,$Inf,$Inv,$Err,$ERR,$FLD,$nfd,
+ $Not,$NoT,$NOT,$PSD,$Run,$Use,$Wrn,$WRN,$WTF)=(@$msgstrings);
+###++++++++++++++++++++++++++++++++++###
+
+########################################
+###  set some regular expression crap...
+my $regexprs=$DataSpace->{'RegExprs'};
+my($rexdate,$rexshrt,$rexsort)=(@$regexprs);
+###++++++++++++++++++++++++++++++++++###
+
+########################################
+###  set da default date/time strings...
+my $datimes=$DataSpace->{'TimeSpace'};
+my $cdate=$datimes->{'Dates'}->{'cdate'};
+my $ctime=$datimes->{'Times'}->{'ctime'};
+###++++++++++++++++++++++++++++++++++###
+
+########################################
+#======================================#
+#======================================#
+########################################
+
+
+########################################
+###  check for valid option variables...
+
+if ($sort) {
+  my(@sortvals)=qw(all amnt name nomatch payid unique);
+  unless (&ListIn($sort,\@sortvals)) {
+    print "$Err Bad sort option:  $sort\n";
+    print "     Valid sort options:  @sortvals\n";
+    exit(7);
+  }
+}
+
+###++++++++++++++++++++++++++++++++++###
+
+
+###================================================###
+###  |||||||||  Subroutine definitions  |||||||||  ###
+###================================================###
+
+
+###-------------------------------------###
+###  std automatic self-propelled test...
+###-------------------------------------###
+sub autoSelfTest {
+  my $subname=(caller(0))[3];
+  &ToolKit::AutoTestTool($noise,$me);
+  # add custom self-tests here...
+  my(@customs) = (
+    "$me chkit",
+   );
+  &ToolKit::AutoCustTest($noise,$me,\@customs);
+  exit(0);
+}
+###=====================================###
+
+
+###-------------------------------------###
+###  this is part of the self testing...
+###-------------------------------------###
+sub chkScript {
+  my $subname=(caller(0))[3];
+  print "Script basic run check for:  $me\n";;
+  return(0);
+}
+###=====================================###
+
+
+###-------------------------------------###
+###  standard helpless screen nonsense...
+###-------------------------------------###
+sub HelpScreen() {
+  my($sound,$arg)=@_;
+  my $subname=(caller(0))[3];
+  if ($arg) {
+    &ToolKit::ArgCheck("help arg",$arg,\@validargs) or &Usage;
+    &BLine(); print "Command specific help for \'$arg\':\n"; &BLine();
+    if ($arg eq 'ask') {
+      print "  $me ask     - ask random question from list.\n";
+     } elsif ($arg eq 'colr') {
+      print "Usage:  $me colr textcolor backcolor\n";
+      &BLine();
+      print "where:  textcolor  =  text color value (ansi, rgb, use colors)\n";
+      print "        backcolor  =  background color value (use colors)\n";
+      &BLine();
+    }
+   } else {
+    &BLine();
+    $fore="ansi46"; $back="on_black";
+    print color("$fore $back");
+    print "This is the shell skeleton Perl script.\n";
+    &BLine();
+    print "This script uses the ToolKit.pm module.\n";
+    print " Both files must be in the same dir...\n";
+    print " -or- ToolKit.pm must be in INC path.\n";
+    print color('reset');
+    &BLine();
+    $fore="ansi154"; print color("$fore $back");
+    print "Valid arguments for script $me:\n";
+    print "  regargs - @regargs\n";
+    print "  runargs - @runargs\n";
+    print "  stdargs - @stdargs\n";
+    print color('reset'); &BLine();
+    $fore="ansi51"; print color("$fore $back");
+    print "To see help for show arg, enter: $me show\n";
+    print color('reset'); &BLine();
+    $fore="ansi129"; print color("$fore $back");
+    print "Valid commands for this script:\n\n";
+    print "  $me <<>>    = [ fill in details ]\n";
+    &BLine();
+    print "  $me nul     = [ do nothing ]\n";
+    print "  $me warn    = print Warning banner.\n";
+    print "  $me colr    = print test color string.\n";
+    print "  $me email   = format unix/linux email.\n";
+    print "  $me ask     = ask random question from list.\n";
+    print "  $me msgs    = print internal message strings.\n";
+    print "  $me run(x)  = run ProcessGenericCsvDataFile.\n";
+    print "  $me show    = run ToolKit::ShowMeTheMoney\n";
+    print "  $me test    = run ToolKit::autoSelfTest\n";
+    print "  $me pass    = run ToolKit::ChkPassword\n";
+    print "  $me chkit   = run ToolKit::chkScript\n";
+    &BLine();
+    print "For detailed arg help enter:  \'$me -h <arg>\'\n";
+    print color('reset'); &BLine(); exit(0);
+  }
+
+  exit(0);
+}
+###=====================================###
+
+
+###########################################
+###-------------------------------------###
+###=============  +++++++  =============###
+###-------------------------------------###
+###########################################
+###  Process a raw generic csv data file...
+###########################################
+###-------------------------------------###
+###=============  +++++++  =============###
+###-------------------------------------###
+###########################################
+sub ProcessGenericCsvDataFile() {
+  my($sound,$filname)=@_;
+  my $subname=(caller(0))[3];
+  my $fspec="";
+
+  ### set the filename for the csv data file...
+  #my($filname)=&GetInputFilName($sound,'single','StupidFile.csv',$subname);
+  #my(@filnames)=&GetInputFilName($sound,'multi','Stupid*.csv',$subname);
+  #$filname or return(); print "Processing file:  $filname\n"; &BLine($sound-1);
+  if ($filname) {
+    if ($filname =~ /\.csv$/) {
+      print "Processing file:  $filname\n"; &BLine($sound-1);
+     } else {
+      print "$Err Not a .csv file:  $filname\n"; &BLine($sound-1); return();
+    }
+   } else {
+    print "No filename given.  Exiting...\n"; &BLine($sound-1); return();
+  }
+
+  ### get the csv hash and std file content list...
+  my($ffile,$fdata)=&FilGet($sound,$filname,'csv'); $ffile or return();
+
+  ### counters, switches, triggers, file line#...
+  my($i,$j,$k,$lnum)=(0,0,0,0);
+  my($dcnt,$rcnt,$row)=(0,0,0,0,0,0,0);
+
+  ### variables used to hunt & capture wild data...
+  my($var0,$var1,$var2,$var3,$var4)=("","","",0,1);
+
+  ### internal loop vars...
+  my($pstring)=("","","");
+  my($csvhash)=({});
+  my($csvlist)=([]);
+
+  ### output format...
+  $fmt="%+4s%-30s\n";
+
+  ### data ref variables...
+  my($cref,$xref,$yref,$zref);
+
+  ### define initial data structures...
+  $gdata->{'CsvData'}={};
+  #$gdata->{'GenData'}->{'Account#'}={};
+  #$gdata->{'GenData'}->{'DataFile'}=[];
+
+  ### set reference vars to data structure...
+  $cref=$gdata->{'CsvData'};
+  #$xref=$gdata->{'GenData'};
+  #$yref=$gdata->{'GenData'}->{'Account#'};
+  #$zref=$gdata->{'GenData'}->{'Patient#'};
+
+
+  #############################################
+  #############################################
+  ###  START START START START START START  ###
+  #############################################
+  #############################################
+  for $row (sort { $a <=> $b } (keys(%{$fdata->{'fields'}}))) {
+    @flds=@{$fdata->{'fields'}->{$row}}; $var0=$flds[0];
+    print "Processing row#:  $row\n";
+
+    ### use oride flag to enumerate the stupid column headers...
+    if ($oride && defined($range)) {
+      if ($row == $range) {
+        print "++++--->>>  Here is data from row $row:\n";
+        for (@flds) { printf($fmt,"$i:","  \'$_\'"); $i++; } last;
+      }
+    }
+
+    #########################################
+    ###     PROCESSING CSV PROCESSING     ###
+    #########################################
+    #($var1,$var2,$var3,$var4)=@flds[1..4];
+    #$var1=&FmtDate($sound,'sort',$var1);
+    #$var2=&FmtNumber($sound,'cash',$var2);
+    #@flds=($var1,$var2,$var3,$var4);
+    #$pstring=join(' | ',@flds); push @$csvlist, $pstring;
+    #$pstring=join(' | ',@flds); push $csvhash->{$var1}, $pstring;
+    $rcnt++;
+    ########################################
+    ###    END   CSV PROCESSING   END    ###
+    ########################################
+
+  }
+  ### end of file loop...
+
+  ### save the globular data and the whales and baby seals...
+  &SaveGlobalData($sound,'genhash',$cref,$csvhash);
+  &SaveGlobalData($sound,'genlist',$cref,$csvlist);
+
+
+  ### processing complete...
+  print "Processing done:  $filname\n\n";
+
+  ### now print out all the erudite informational details...
+  $fmt="%+27s%+10s\n";
+  #$dcnt=(keys(%$testdata));
+  $sound and printf($fmt,"Total #Rows in File:",$rcnt);
+  &BLine($sound,2);
+
+
+  return();
+}
+###=====================================###
+###########################################
+###  END END END generic csv data file...
+###########################################
+###=====================================###
+
+
+###########################################
+###-------------------------------------###
+###=============  +++++++  =============###
+###-------------------------------------###
+###########################################
+###  Save all dafile data in global hash...
+###########################################
+###-------------------------------------###
+###=============  +++++++  =============###
+###-------------------------------------###
+###########################################
+sub SaveGlobalData() {
+  my($sound,$datatype,$ref,@data)=@_;
+  my $subname=(caller(0))[3];
+
+  ### vars for general use...
+  my($i,$j)=(0,0);
+  my($claim,$subclm,$svcstr);
+  my($pinfo);
+
+  unless ($datatype) {
+    print "$Err SaveGlobalData  --->  No data type specified.\n\n"; exit;
+  }
+
+  if ($datatype eq 'genlist') {
+    ###############--------------###############
+    ### =======>>>  generic file  <<<======= ###
+    ###############--------------###############
+    # $ref=$gdata->{'CsvData'};
+    # $ref is a list reference...
+    my($crows)=@data;
+    my($anum,$pnum)=();
+    for my $row (sort { $a <=> $b } @$crows) {
+      @flds=split(/ \| /,$row);
+      ($anum,$pnum)=@flds;
+      $ref->{'Account#'}->{$anum}=$row;
+      $ref->{'Patient#'}->{$pnum}=$row;
+    }
+    ### end of ref data list loop...
+
+   } elsif ($datatype eq 'genhash') {
+    ###############--------------###############
+    ### =======>>>  generic file  <<<======= ###
+    ###############--------------###############
+    # $ref=$gdata->{'CsvData'};
+    # $ref is a hash reference...
+    my($crows)=@data;
+    my($anum,$pnum)=();
+    for my $row (sort { $a <=> $b } (keys(%$crows))) {
+      @flds=split(/ \| /,$row);
+      ($anum,$pnum)=@flds;
+      $ref->{'Account#'}->{$anum}=$row;
+      $ref->{'Patient#'}->{$pnum}=$row;
+      $ref->{'Chicken#'}->{$anum}=$crows->{$anum};
+    }
+    ### end of ref data key loop...
+
+
+   } else {
+    print "$Err $subname:  --->  Invalid data save type:  $datatype\n\n"; exit;
+
+  }
+
+  return();
+}
+###=====================================###
+###########################################
+###  END END END generic csv data file...
+###########################################
+###=====================================###
+
+
+
+###-------------------------------------###
+###  obligatory uselessness subroutine...
+###-------------------------------------###
+sub Usage {
+  my $subname=(caller(0))[3];
+#print "Entering subroutine:  $subname\n";
+#print "defined:  args passed = @_\n";
+  my $Use=colored("Usage:  $me ",'black on_yellow');
+  my $cargs=colored("<arguments>",'red on_yellow');
+  my $copts=colored("[options]",'blue on_yellow');
+  my $cblnk=colored(" ",'red on_yellow');
+  $Use .= "$copts$cblnk$cargs";
+  print "$Use\n";
+  &BLine();
+  print "Valid arguments for script $me:\n";
+  print "  regargs - @regargs\n";
+  print "  runargs - @runargs\n";
+  print "  stdargs - @stdargs\n";
+  print color('reset'); &BLine();
+  print "where:  $cargs  --> any one of the following:\n";
+  print "          arg1       = execute command #1\n";
+  print "          arg2       = execute command #2\n";
+  print "          show       = print extended show screen\n";
+  print "\n";
+  print " with:  $copts    --> any combo of the following:\n";
+  print "        -h[elp]      = print basic help screen\n";
+  print "        -n[oexec]    = do not execute any cmds\n";
+  print "        -N[oexec]    = do not execute any cmds\n";
+  print "        -v[erbose]   = be loquacious & bombastic\n";
+  print "        -V[erbose]   = be extra loud & obnoxious\n";
+  print "        -y[es]       = auto mode - no user input\n";
+  &BLine();
+  exit(1);
+}
+###=====================================###
+
+
+
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+###  |||||||  End Subroutine definitions  |||||||  ###
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+
+
+
+###================================================###
+###  >>>>>>>  Primary Flow Control Block  <<<<<<<  ###
+###================================================###
+
+
+if ($marg eq 'ask') {
+  #+++++++++++++++++++++++++++++++++#
+  &ToolKit::ChkUserDoubt($noise,$ARGV[0]);
+  #=================================#
+
+
+ } elsif (&ListIn($marg,[('barf')])) {
+  #+++++++++++++++++++++++++++++++++#
+  my $msg="Ready to $marg...";
+  &ToolKit::DoNothing($msg,'ansi0','on_ansi51');
+  #=================================#
+
+
+ } elsif ($marg eq 'chkit') {
+  #+++++++++++++++++++++++++++++++++#
+  &chkScript($noise);
+  #=================================#
+
+
+ } elsif ($marg =~ /^colr/) {
+  #+++++++++++++++++++++++++++++++++#
+  print "Running test argument:  $marg\n";
+
+  if (defined($ARGV[0]) && defined($ARGV[1])) {
+    my $fore=shift @ARGV; my $back=shift @ARGV;
+    &ToolKit::ColorTest($noise,$fore,$back);
+   } else {
+    print "No colors specified.  Exiting...\n";
+  }
+  #=================================#
+
+
+ } elsif ($marg eq 'email') {
+  #+++++++++++++++++++++++++++++++++#
+  my($mdata) = {(                          # reference to anonymous hash...
+    'Subject'  =>  "silly string!",        #  plain old regular string...
+    'TxtBody'  =>  [(                      #  reference to an anonymous array...
+                    "line number #1\n",
+                    "line number #2\n",
+                    "line number #3\n",
+                   )],
+    'ToMail'  =>  'cthurman@space_chicken',  #  space delim string of addrs...
+    'Attach'  =>  "/path/to/fil1,/p2/fil2",  #  comma delim string of files...
+   )};
+
+  &ToolKit::SpewMail($noise,$mdata);
+  #=================================#
+
+
+ } elsif ($marg eq 'msgs') {
+  #+++++++++++++++++++++++++++++++++#
+  print "Internal message strings:\n";
+  for (@$msgstrings) { print "$_\n"; }
+  #=================================#
+
+
+ } elsif ($marg eq 'nul') {
+  #+++++++++++++++++++++++++++++++++#
+  my $msg="Doing Nothing...";
+  &ToolKit::DoNothing($msg,'ansi0','on_ansi51');
+
+  ### insert random code fragments here...
+  #my $s="aaabbb"; $s=4;
+  #print "var \'s\' is now:  $s\n";
+  #$s++; $s=$s.5;
+  #print "var \'s\' is now:  $s\n";
+  #my($n1,$s1)=(666,"abc");
+  #my $combo = $n1 + $s1;
+  #print "combo is:  $combo\n";
+
+  #=================================#
+
+
+ } elsif ($marg eq 'pass') {
+  #+++++++++++++++++++++++++++++++++#
+  print "Running test argument:  $marg\n";
+
+  my @passes;
+  if (@ARGV) {
+    @passes=@ARGV;
+   } else {
+    #print "\nEnter test password:  ";
+    #$pass=<STDIN>; chomp $pass;
+  }
+  if ($oride) {
+    @passes=('a!B1','a@B1x','a#B1xx','a$B1xxx','x!B2ijkl',
+             'a%B1y','a^B1yy','a&B1yyy','a*B1','x*B3ijkl',);
+  }
+  &ToolKit::ChkPassword($noise,@passes);
+  #=================================#
+
+
+ } elsif ($marg =~ /^run/) {
+  #+++++++++++++++++++++++++++++++++#
+  print "Running test argument:  $marg\n";
+
+  ### insert random code fragments here...
+  #my $s="aaabbb"; $s=4;
+  #print "var \'s\' is now:  $s\n";
+  #$s++; $s=$s.5;
+  #print "var \'s\' is now:  $s\n";
+
+  my $fname=shift @ARGV;
+  &ProcessGenericCsvDataFile($noise,$fname);
+  #=================================#
+
+
+ } elsif ($marg eq 'show') {
+  #+++++++++++++++++++++++++++++++++#
+  my($argues) = {(
+    'regargs'    =>  \@regargs,
+    'runargs'    =>  \@runargs,
+    'stdargs'    =>  \@stdargs,
+   )};
+  &ToolKit::ShowMeTheMoney($noise,\%options,$argues,\@ARGV);
+  #=================================#
+
+
+ } elsif ($marg eq 'test') {
+  #+++++++++++++++++++++++++++++++++#
+  &autoSelfTest;
+  #=================================#
+
+
+ } elsif ($marg eq 'warn') {
+  #+++++++++++++++++++++++++++++++++#
+  &PrnWarn; &BLine();
+  #=================================#
+
+}  # end of primary control flow block...
+
+
+###############################################
+###  Print global data structure pieces...  ###
+###############################################
+&ToolKit::PrnDataStruct($noise,\@ARGV,$gdata);
+
+
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+###  =============>  Program Exit  <=============  ###
+###++++++++++++++++++++++++++++++++++++++++++++++++###
+exit(0);
+
+
+#####################
+###  end-of-file  ###
+#####################

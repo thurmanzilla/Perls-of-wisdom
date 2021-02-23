@@ -1,0 +1,436 @@
+#!/usr/bin/env -S python
+
+##+++--------------------+++##
+###  basic python3 script  ###
+##+++--------------------+++##
+
+# ========================== #
+###  begin import section  ###
+# ========================== #
+
+import os
+import re
+import sys
+
+#  add python lib dir to sys.path
+PYLIB = os.environ['HOME'] + "\lib\python3"
+sys.path.insert(0,PYLIB)
+
+import argparse
+import keyword 
+import math 
+import pickle 
+import random 
+import subprocess
+import random
+import tkinter
+import turtle
+
+import matplotlib.pyplot as mplot
+
+import ToolKit
+
+# ========================== #
+###   end import section   ###
+# ========================== #
+
+
+
+
+# ====================== #
+###   Python keywords  ###
+# ====================== #
+# and
+# as 
+# assert 
+# break 
+# class 
+# continue 
+# def 
+# del 
+# elif 
+# else 
+# except 
+# False 
+# finally 
+# for 
+# from 
+# global 
+# if 
+# import 
+# in 
+# is 
+# lambda 
+# None 
+# nonlocal 
+# not 
+# or 
+# pass 
+# raise
+# return
+# True
+# try
+# while
+# with
+# yield
+# ========================== #
+###   End Python keywords  ###
+# ========================== #
+
+
+# =============================== #
+###   Python builtin functions  ###
+# =============================== #
+# __import__()
+# abs()
+# all()
+# any()
+# ascii()
+# bin()
+# bool()
+# breakpoint()
+# bytearray()
+# bytes()
+# callable()
+# chr()
+# classmethod()
+# compile()
+# complex()
+# delattr()
+# dict()
+# dir()
+# divmod()
+# enumerate()
+# eval()
+# exec()
+# filter()
+# float()
+# format()
+# frozenset()
+# getattr()
+# globals()
+# hasattr()
+# hash()
+# help()
+# hex()
+# id()
+# input()
+# int()
+# isinstance()
+# issubclass()
+# iter()
+# len()
+# list()
+# locals()
+# map()
+# max()
+# memoryview()
+# min()
+# next()
+# object()
+# oct()
+# open()
+# ord()
+# pow()
+# print()
+# property()
+# range()
+# repr()
+# reversed()
+# round()
+# set()
+# setattr()
+# slice()
+# sorted()
+# staticmethod()
+# str()
+# sum()
+# super()
+# tuple()
+# type()
+# vars()
+# zip()
+# =================================== #
+###   End Python builtin functions  ###
+# =================================== #
+
+
+print('')
+print("Start of script...");
+print('')
+print('===================================================')
+print("---  This script is written by:  Chris Thurman  ---");
+print('===================================================')
+print('')
+
+# print the arguments...
+#print("Script arguments:");
+#cnt=0
+#for arg in sys.argv:
+#  print("Arg #",cnt,": ",arg)
+#  cnt+=1
+
+#print('')
+#print("Total # arguments =",cnt)
+#print('')
+
+#print(sys.path)
+
+if len(sys.argv) > 2:
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument("echo", help="echo arg to screen")
+  #args = parser.parse_args()
+  #print(args.echo)
+  #keyword.list
+
+  #print(sys.argv[0])
+  #print(sys.argv)
+  #print("HOME is: ",os.environ['HOME'])
+  #print('sys.path is',sys.path)
+
+  ### validate input function test parameters...
+  #prompt = 'Enter a positive integer:  '
+  #inp_type = 'integer'
+  #sub_type = 'positive'
+  #err_msg = 'Error:  Must enter a positive integer, not: '
+
+  ### validate input function test parameters...
+  prompt = 'Enter a [Y]es or [N]o answer:  '
+  itype = 'binary'
+  stype = ''
+  emsg = 'Error:  Must enter a Yes or No answer, not: '
+
+  ### test function get_valid_input...
+  var = ToolKit.get_valid_input(prompt, emsg, itype, stype)
+  print('variable entered has been validated: ', var)
+  print('')
+
+  choice = input("You must Choose:  ")
+  print('')
+  if (choice):
+    print("You have chosen: ",choice)
+  else:
+    print("If you choose not to decide you still have made a choice!")
+  print('')
+
+
+###  ================================================  ###
+###  SDEV140-45P Class Assignment code begins here...  ###
+###  ================================================  ###
+
+
+print("============================================")
+print("This script is written for class SDEV140-45P")
+print("  Assignment:  M0x ChapterXX - Exercise XX")
+print("============================================")
+print('')
+print("=============    Program Description    ==============")
+print("This script will endeveour to persevere.")
+print(".")
+print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+print()
+print()
+
+
+### set literal strings/numbers (global constants)...
+
+
+###=============================================###
+###>>  Internal Program Function Definitions  <<###
+###=============================================###
+
+
+###--------------------------------###
+###  calculate values required...  ###
+###--------------------------------###
+def calc_values(Flist):
+    Mon_days = Toolkit.get_monsofyear('short')
+    (yavg, ycnt, ytot) = (0, 0, 0)
+    for mon in Mon_days.keys():
+        mdays = Mon_days[mon]
+        (mavg, mtot) = (0, 0)
+        #print("Computing:  Month =", mon, " #days =", mdays)
+        for dcnt in range(1, mdays+1):
+            #print("ycnt is: ", ycnt, " dcnt is: ", dcnt, " steps is: ", Flist[ycnt])
+            mtot += Flist[ycnt]
+            ycnt += 1
+        ytot += mtot
+        mavg = mtot / mdays
+        Mon_avgs[mon] = mavg
+        #print("Results:  Month =", mon, " average #steps =", mavg)
+    yavg = ytot / ycnt
+
+    return( Mon_days, Mon_avgs, yavg )
+###+++++++++++++++++++++++++++++++###
+###  end calc_values function  ###
+###+++++++++++++++++++++++++++++++###
+
+###---------------------------------###
+###  create a list of file guts...  ###
+###---------------------------------###
+def create_file_guts(rand_cnt):
+    # create a list of rand_cnt numbers...
+    Nums = []
+    (avg, cnt, total) = (0, 0, 0)
+    for i in range(1, rand_cnt+1):
+        num = random.randint(1, 500)
+        Nums.append(num)
+        total += num
+        cnt += 1
+    if cnt:
+        avg = total / cnt
+    else:
+        print("Error:  empty list, cannot compute average.  Nums =", Nums)
+        avg = 'infinity'
+
+    return( [avg, cnt, total, Nums] )
+###+++++++++++++++++++++++++++++++###
+###  end calc_values function  ###
+###+++++++++++++++++++++++++++++++###
+
+###------------------------------###
+###  print out final results...  ###
+###------------------------------###
+def print_results(Results):
+    (dcnt, lcnt, tcnt, ucnt, wcnt) = Results
+    print("Results for file:")
+    print("  Number of digits in file:             ", f'{dcnt:>8d}')
+    print("  Number of lowercase letters in file:  ", f'{lcnt:>8d}')
+    print("  Number of uppercase letters in file:  ", f'{ucnt:>8d}')
+    print("  Number of whitespace letters in file: ", f'{wcnt:>8d}')
+    print("  Total number of characters in file:   ", f'{tcnt:>8d}')
+
+
+    print()
+    return(1)
+###++++++++++++++++++++++++++++++###
+###  end print_results function  ###
+###++++++++++++++++++++++++++++++###
+
+###--------------------------###
+###  process a file list...  ###
+###--------------------------###
+def process_filelist(fList):
+    (dcnt, lcnt, tcnt, ucnt, wcnt) = (0,0,0,0,0)
+
+    for line in fList:
+        for char in line:
+            tcnt += 1
+            if re.match(r'\d', char):
+                dcnt += 1
+            elif re.match(r'[a-z]', char):
+                lcnt += 1
+            elif re.match(r'[A-Z]', char):
+                ucnt += 1
+            elif re.match(r'\s', char):
+                wcnt += 1
+
+    Results = [dcnt, lcnt, tcnt, ucnt, wcnt]
+
+    return(Results)
+###+++++++++++++++++++++++++++++++++###
+###  end process_filelist function  ###
+###+++++++++++++++++++++++++++++++++###
+
+
+###--------------------------###
+###  process the results...  ###
+###--------------------------###
+def process_results(Results):
+    cnt = len(Results)
+    # check for empty list...
+    if cnt == 0:
+        Results[0] = "Error:  No valid words entered"
+    # check if first word is letters and lowercase...
+    elif Results[0].isalpha() and Results[0].islower():
+        word = Results[0]
+        # change case of first letter
+        letter = word[0]
+        letter = letter.upper()
+        word = letter + word[1:]
+        Results[0] = word
+
+    return(Results)
+###++++++++++++++++++++++++++++++++###
+###  end process_results function  ###
+###++++++++++++++++++++++++++++++++###
+
+
+###------------------------------------###
+###  functions to test code chunks...  ###
+###------------------------------------###
+
+def clunk():
+    #numlist = [3,4]
+    #total = 0
+    #for value in numlist:
+    #     total -=value
+    #print('Total: ', total)
+
+    print ('done with the loop!')
+
+def test_code():
+    clunk()
+
+    #clunk(x=5, y=6, z=7)
+    #clunk(5, 6, 7)
+    #flist = ['ack', 'bleh', 'barf', 'puke']
+    #ylist = flist[0,2,3]
+    #print("flist is:", flist)
+    #print("ylist is:", ylist)
+    #exit()
+
+###++++++++++++++++++++++++++++++###
+###  end test code functions...  ###
+###++++++++++++++++++++++++++++++###
+
+
+###=================================================###
+###>>  End Internal Program Function Definitions  <<###
+###=================================================###
+
+
+###--------------------###
+###  main function...  ###
+###--------------------###
+def main():
+
+    test_code()
+
+    # get input name from the user...
+    #Results = ToolKit.get_user_input_List(prompt, emsg, itype, stype)
+
+    # read the  input file into a list...
+    #fList = ToolKit.file_getlist("./text.txt")
+    var = ToolKit.get_user_input('floater')
+
+    # process the file list...
+    #Results = process_filelist(fList)
+
+    # process the results...
+    #Results = process_results(Results)
+
+    # print the results...
+    #print_results(Results)
+
+    # read/write a file...
+    #fList = ToolKit.file_getlist("./text.txt")
+    #ToolKit.file_put("./randoms.txt", Flist)
+
+    pass
+
+###+++++++++++++++++++++###
+###  end main function  ###
+###+++++++++++++++++++++###
+
+
+# call main function
+main(); print()
+
+
+
+
+#####################
+###  end-of-file  ###
+#####################

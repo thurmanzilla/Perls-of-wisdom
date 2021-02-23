@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Term::ANSIColor;
+
+$|=1;   # turn off output buffering
+
+my ($line1,$line2);
+for my $i (1..10) {
+  $line1.=colored("         $i",'cyan on_black');
+  $line2.=colored("123456789",'yellow on_black');
+  $line2.=colored("0",'green on_black');
+}
+for my $i (11..13) {
+  $line1.=colored("        $i",'cyan on_black');
+  $line2.=colored("123456789",'yellow on_black');
+  $line2.=colored("0",'green on_black');
+}
+$line2.=colored("12",'yellow on_black');
+
+print "$line1\n";
+print "$line2\n";
+
